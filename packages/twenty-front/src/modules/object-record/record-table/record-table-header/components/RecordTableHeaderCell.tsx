@@ -1,5 +1,5 @@
 import styled from '@emotion/styled';
-import { useCallback, useMemo, useState } from 'react';
+import { Dispatch, forwardRef, SetStateAction, useCallback, useMemo, useState } from 'react';
 import { useRecoilCallback, useRecoilState, useRecoilValue } from 'recoil';
 import { IconPlus, LightIconButton } from 'twenty-ui';
 
@@ -23,6 +23,7 @@ const COLUMN_MIN_WIDTH = 104;
 const StyledColumnHeaderCell = styled.th<{
   columnWidth: number;
   isResizing?: boolean;
+  isDragging?: boolean
 }>`
   border-bottom: 1px solid ${({ theme }) => theme.border.color.light};
   color: ${({ theme }) => theme.font.color.tertiary};
@@ -47,8 +48,8 @@ const StyledColumnHeaderCell = styled.th<{
     };
     `;
   }};
-  ${({ isResizing, theme }) => {
-    if (isResizing === true) {
+  ${({ isResizing, theme, isDragging }) => {
+    if (isResizing === true || isDragging === true) {
       return `&:after {
         background-color: ${theme.color.blue};
         bottom: 0;
@@ -89,13 +90,21 @@ const StyledHeaderIcon = styled.div`
   margin: ${({ theme }) => theme.spacing(1, 1, 1, 1.5)};
 `;
 
-export const RecordTableHeaderCell = ({
-  column,
-  objectMetadataNameSingular,
-}: {
+type RecordTableHeaderCellProps = {
   column: ColumnDefinition<FieldMetadata>;
   objectMetadataNameSingular: string;
-}) => {
+  ref?: React.Ref<HTMLTableCellElement>;
+  isDragging? : boolean
+  setIsResizing : Dispatch<SetStateAction<boolean>>
+};
+
+export const RecordTableHeaderCell = forwardRef<HTMLTableCellElement, RecordTableHeaderCellProps>(({
+  column,
+  objectMetadataNameSingular,
+  isDragging,
+  setIsResizing,
+  ...restProps
+}, ref) => {
   const { resizeFieldOffsetState, tableColumnsState } = useRecordTableStates();
 
   const { objectMetadataItem } = useObjectMetadataItem({
@@ -121,6 +130,7 @@ export const RecordTableHeaderCell = ({
   const { handleColumnsChange } = useTableColumns();
 
   const handleResizeHandlerStart = useCallback((positionX: number) => {
+    setIsResizing(true)
     setInitialPointerPositionX(positionX);
   }, []);
 
@@ -130,6 +140,7 @@ export const RecordTableHeaderCell = ({
     (positionX: number) => {
       if (!initialPointerPositionX) return;
       setResizeFieldOffset(positionX - initialPointerPositionX);
+      setIsResizing(false);
     },
     [setResizeFieldOffset, initialPointerPositionX],
   );
@@ -210,6 +221,9 @@ export const RecordTableHeaderCell = ({
       )}
       onMouseEnter={() => setIconVisibility(true)}
       onMouseLeave={() => setIconVisibility(false)}
+      isDragging={isDragging}
+      {...restProps}
+      ref={ref}
     >
       <StyledColumnHeadContainer>
         <RecordTableColumnHeadWithDropdown column={column} />
@@ -237,4 +251,4 @@ export const RecordTableHeaderCell = ({
       )}
     </StyledColumnHeaderCell>
   );
-};
+});

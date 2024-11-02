@@ -32,6 +32,10 @@ export type RecordTableContextProps = {
   visibleTableColumns: ColumnDefinition<FieldMetadata>[];
   recordTableId: string;
   objectNameSingular: string;
+  dragHighlightedTableHeadIndex: {
+    sourceIndex : number;
+    destinationIndex : number
+  }
 };
 
 export const RecordTableContext = createContext<RecordTableContextProps>(

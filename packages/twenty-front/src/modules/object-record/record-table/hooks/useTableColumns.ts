@@ -96,6 +96,7 @@ export const useTableColumns = (props?: useRecordTableProps) => {
           visibleColumn.fieldMetadataId === column.fieldMetadataId,
       );
 
+      console.log("visibleTableColumns", visibleTableColumns)
       const columns = handleColumnMove(
         direction,
         currentColumnArrayIndex,

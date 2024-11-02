@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useCallback, useState } from 'react';
 import { useRecoilValue } from 'recoil';
 
 import { useObjectMetadataItem } from '@/object-metadata/hooks/useObjectMetadataItem';
@@ -6,6 +6,7 @@ import { RecordTableContext } from '@/object-record/record-table/contexts/Record
 import { useHandleContainerMouseEnter } from '@/object-record/record-table/hooks/internal/useHandleContainerMouseEnter';
 import { useRecordTableStates } from '@/object-record/record-table/hooks/internal/useRecordTableStates';
 import { useRecordTableMoveFocus } from '@/object-record/record-table/hooks/useRecordTableMoveFocus';
+import { useTableColumns } from '@/object-record/record-table/hooks/useTableColumns';
 import { useCloseRecordTableCellV2 } from '@/object-record/record-table/record-table-cell/hooks/useCloseRecordTableCellV2';
 import { useMoveSoftFocusToCellOnHoverV2 } from '@/object-record/record-table/record-table-cell/hooks/useMoveSoftFocusToCellOnHoverV2';
 import {
@@ -16,6 +17,8 @@ import { useTriggerActionMenuDropdown } from '@/object-record/record-table/recor
 import { useUpsertRecord } from '@/object-record/record-table/record-table-cell/hooks/useUpsertRecord';
 import { MoveFocusDirection } from '@/object-record/record-table/types/MoveFocusDirection';
 import { TableCellPosition } from '@/object-record/record-table/types/TableCellPosition';
+import { DragDropContext, OnDragEndResponder, OnDragUpdateResponder } from '@hello-pangea/dnd';
+import { moveArrayItem } from '~/utils/array/moveArrayItem';
 
 export const RecordTableContextProvider = ({
   viewBarId,
@@ -29,6 +32,15 @@ export const RecordTableContextProvider = ({
   children: ReactNode;
 }) => {
   const { visibleTableColumnsSelector } = useRecordTableStates(recordTableId);
+
+  const [dragHighlightedTableHeadIndex, setDragHighlightedTableHeadIndex] = useState({
+    sourceIndex : -1,
+    destinationIndex : -1
+  });
+
+  const { handleColumnReorder } = useTableColumns(
+    { recordTableId: recordTableId },
+  );
 
   const { objectMetadataItem } = useObjectMetadataItem({
     objectNameSingular,
@@ -92,7 +104,39 @@ export const RecordTableContextProvider = ({
 
   const visibleTableColumns = useRecoilValue(visibleTableColumnsSelector());
 
+  const handleReorderColumns: OnDragEndResponder = useCallback(
+    (result) => {
+      setDragHighlightedTableHeadIndex({
+        sourceIndex : -1,
+        destinationIndex : -1
+      }); //reset
+      if (
+        !result.destination ||
+        result.destination.index === 0 ||
+        result.source.index === 0
+      ) {
+        return;
+      }
+
+      const reorderedFields = moveArrayItem(visibleTableColumns, {
+        fromIndex: result.source.index,
+        toIndex: result.destination.index,
+      });
+
+      handleColumnReorder(reorderedFields);
+    },
+    [visibleTableColumns, handleColumnReorder],
+  );
+
+  const onDragUpdate : OnDragUpdateResponder = (update)  => {
+    if(update.destination && update.source){
+setDragHighlightedTableHeadIndex({
+  sourceIndex: update.source.index, destinationIndex: update.destination.index})
+    }
+  };
+
   return (
+    <DragDropContext onDragEnd={handleReorderColumns} onDragUpdate={onDragUpdate}>
     <RecordTableContext.Provider
       value={{
         viewBarId,
@@ -107,9 +151,11 @@ export const RecordTableContextProvider = ({
         visibleTableColumns,
         recordTableId,
         objectNameSingular,
+        dragHighlightedTableHeadIndex: dragHighlightedTableHeadIndex
       }}
     >
       {children}
     </RecordTableContext.Provider>
+    </DragDropContext>
   );
 };

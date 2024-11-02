@@ -2,11 +2,14 @@ import styled from '@emotion/styled';
 import { useRecoilValue } from 'recoil';
 import { MOBILE_VIEWPORT } from 'twenty-ui';
 
+import { RecordTableContext } from '@/object-record/record-table/contexts/RecordTableContext';
 import { useRecordTableStates } from '@/object-record/record-table/hooks/internal/useRecordTableStates';
 import { RecordTableHeaderCell } from '@/object-record/record-table/record-table-header/components/RecordTableHeaderCell';
 import { RecordTableHeaderCheckboxColumn } from '@/object-record/record-table/record-table-header/components/RecordTableHeaderCheckboxColumn';
 import { RecordTableHeaderDragDropColumn } from '@/object-record/record-table/record-table-header/components/RecordTableHeaderDragDropColumn';
 import { RecordTableHeaderLastColumn } from '@/object-record/record-table/record-table-header/components/RecordTableHeaderLastColumn';
+import { Draggable, Droppable } from '@hello-pangea/dnd';
+import { useContext, useState } from 'react';
 
 const StyledTableHead = styled.thead`
   cursor: pointer;
@@ -79,20 +82,46 @@ export const RecordTableHeader = ({
 
   const visibleTableColumns = useRecoilValue(visibleTableColumnsSelector());
 
+  const { dragHighlightedTableHeadIndex } = useContext(RecordTableContext);
+
+  const [isResizing, setIsResizing] = useState(false);
+
   return (
     <StyledTableHead id="record-table-header" data-select-disable>
-      <tr>
-        <RecordTableHeaderDragDropColumn />
-        <RecordTableHeaderCheckboxColumn />
-        {visibleTableColumns.map((column) => (
-          <RecordTableHeaderCell
-            key={column.fieldMetadataId}
-            column={column}
-            objectMetadataNameSingular={objectMetadataNameSingular}
-          />
-        ))}
-        <RecordTableHeaderLastColumn />
-      </tr>
+      <Droppable droppableId={"droppable-columns"} direction="horizontal" isDropDisabled={isResizing}>
+        {(droppableProvided) => (
+          <tr ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
+            <RecordTableHeaderDragDropColumn />
+            <RecordTableHeaderCheckboxColumn />
+            {visibleTableColumns.map((column, index) => (
+              <Draggable
+                draggableId={column.fieldMetadataId}
+                key={column.fieldMetadataId}
+                index={index}
+                isDragDisabled={isResizing}
+              >
+                {(draggableProvided, snapshot) => {
+                  const isDraggedOverNext = dragHighlightedTableHeadIndex.destinationIndex === index && dragHighlightedTableHeadIndex.sourceIndex !== dragHighlightedTableHeadIndex.destinationIndex;
+                  return (
+                    <RecordTableHeaderCell
+                      key={column.fieldMetadataId}
+                      ref={draggableProvided.innerRef}
+                      {...draggableProvided.draggableProps}
+                      {...draggableProvided.dragHandleProps}
+                      column={column}
+                      objectMetadataNameSingular={objectMetadataNameSingular}
+                      isDragging={isDraggedOverNext}
+                      setIsResizing={setIsResizing}
+                    />
+                  );
+                }}
+              </Draggable>
+            ))}
+            {droppableProvided?.placeholder}
+            <RecordTableHeaderLastColumn />
+          </tr>
+        )}
+      </Droppable>
     </StyledTableHead>
   );
 };
